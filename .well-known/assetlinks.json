@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.linecorp.LGMGMG",
+      "sha256_cert_fingerprints": [
+        "EC:D3:6E:39:D1:94:3A:61:FB:0B:A2:48:2F:A3:19:32:D2:11:E4:3A:70:16:1C:88:06:A3:86:75:57:15:D9:2D",
+        "9D:D5:A1:F1:88:0A:E7:E9:0A:14:3A:7C:96:7F:BE:79:75:1D:9F:29:9C:60:45:10:B5:7D:A8:67:73:EE:42:9A"
+      ]
+    }
+  }
+]
