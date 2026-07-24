@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Link Tester</title>
+
+<!-- ============================================================
+     Smart App Banner (iOS) — 앱스토어 ID를 넣으면 사파리 상단에
+     "앱에서 열기" 배너가 표시됩니다. 없으면 이 줄을 지우세요.
+     ============================================================ -->
+<meta name="apple-itunes-app" content="app-id=000000000">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --ink:        #0F1420;
+    --surface:    #161D2C;
+    --surface-2:  #1E2739;
+    --line:       #2A3549;
+    --line-soft:  #212b3d;
+    --text:       #E9EDF4;
+    --muted:      #8794AB;
+    --muted-dim:  #5A6478;
+    --signal:     #59E6C3;   /* 앱이 가로챔 (intercepted) */
+    --web:        #F2A65A;   /* 브라우저에 머무름 (fallthrough) */
+    --ios:        #6FB4FF;
+    --android:    #7FD98C;
+    --danger:     #FF7A7A;
+    --radius:     14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    background:
+      radial-gradient(1100px 500px at 85% -10%, rgba(89,230,195,0.06), transparent 60%),
+      radial-gradient(900px 500px at 0% 0%, rgba(111,180,255,0.05), transparent 55%),
+      var(--ink);
+    color: var(--text);
+    font-family: "Space Grotesk", system-ui, sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 28px 20px 80px;
+  }
+
+  .wrap { max-width: 720px; margin: 0 auto; }
+
+  .mono { font-family: "IBM Plex Mono", monospace; }
+
+  /* ---------- Header ---------- */
+  header { margin-bottom: 26px; }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted-dim);
+    margin-bottom: 10px;
+  }
+
+  h1 {
+    font-size: clamp(28px, 7vw, 40px);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
+  h1 .split { color: var(--muted); }
+
+  .lede {
+    color: var(--muted);
+    margin-top: 12px;
+    font-size: 15px;
+    max-width: 52ch;
+  }
+
+  /* ---------- Resolver panel (signature) ---------- */
+  .resolver {
+    margin: 24px 0 30px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: linear-gradient(180deg, var(--surface-2), var(--surface));
+    overflow: hidden;
+  }
+  .resolver-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line-soft);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    color: var(--muted-dim);
+    letter-spacing: 0.05em;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+  .dot.live { background: var(--signal); box-shadow: 0 0 0 0 rgba(89,230,195,0.5); animation: pulse 2.4s infinite; }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(89,230,195,0.45); }
+    70%  { box-shadow: 0 0 0 7px rgba(89,230,195,0); }
+    100% { box-shadow: 0 0 0 0 rgba(89,230,195,0); }
+  }
+
+  .resolver-body { padding: 18px 16px 20px; }
+  .res-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 14px;
+    padding: 9px 0;
+    border-bottom: 1px dashed var(--line-soft);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13.5px;
+  }
+  .res-line:last-child { border-bottom: none; }
+  .res-key { color: var(--muted); white-space: nowrap; }
+  .res-val { color: var(--text); text-align: right; word-break: break-all; }
+  .res-val.hl { color: var(--signal); font-weight: 500; }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .badge.ios     { background: rgba(111,180,255,0.14); color: var(--ios); }
+  .badge.android { background: rgba(127,217,140,0.14); color: var(--android); }
+  .badge.desktop { background: rgba(135,148,171,0.14); color: var(--muted); }
+
+  /* ---------- Sections ---------- */
+  section { margin-top: 34px; }
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .sec-num {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    color: var(--signal);
+    font-weight: 600;
+  }
+  h2 { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+  .sec-desc { color: var(--muted); font-size: 14px; margin: 4px 0 16px; }
+
+  /* ---------- Link cards ---------- */
+  .links { display: grid; gap: 10px; }
+  .link-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 15px 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: inherit;
+    text-decoration: none;
+    transition: transform .14s ease, border-color .14s ease, background .14s ease;
+  }
+  .link-card:hover, .link-card:focus-visible {
+    transform: translateY(-2px);
+    border-color: var(--signal);
+    background: var(--surface-2);
+    outline: none;
+  }
+  .link-card:focus-visible { box-shadow: 0 0 0 3px rgba(89,230,195,0.35); }
+
+  .verdict {
+    flex-shrink: 0;
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 18px;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .verdict.app { background: rgba(89,230,195,0.13); color: var(--signal); }
+  .verdict.web { background: rgba(242,166,90,0.13); color: var(--web); }
+
+  .link-meta { min-width: 0; flex: 1; }
+  .link-path {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 14.5px;
+    font-weight: 500;
+    word-break: break-all;
+  }
+  .link-note { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .link-arrow { color: var(--muted-dim); flex-shrink: 0; font-size: 18px; }
+
+  /* ---------- Custom tester ---------- */
+  .custom {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .custom label {
+    flex-basis: 100%;
+    font-size: 12px; letter-spacing: 0.05em;
+    color: var(--muted); font-family: "IBM Plex Mono", monospace;
+  }
+  .custom input {
+    flex: 1; min-width: 180px;
+    background: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--text);
+    padding: 12px 14px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 14px;
+  }
+  .custom input:focus { outline: none; border-color: var(--signal); }
+  .btn {
+    background: var(--signal);
+    color: #062a22;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 600; font-size: 14px;
+    cursor: pointer;
+    transition: filter .14s ease;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:active { filter: brightness(0.95); }
+
+  /* ---------- Config check ---------- */
+  .checks { display: grid; gap: 10px; }
+  .check {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .check-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .status {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 3px 9px; border-radius: 6px;
+    flex-shrink: 0;
+    background: rgba(135,148,171,0.14); color: var(--muted);
+  }
+  .status.ok   { background: rgba(89,230,195,0.14); color: var(--signal); }
+  .status.fail { background: rgba(255,122,122,0.14); color: var(--danger); }
+  .check-file {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px; flex: 1; min-width: 0;
+    word-break: break-all;
+  }
+  .check-file .platform { color: var(--muted); font-size: 11.5px; display: block; margin-top: 2px; }
+  .toggle { color: var(--muted-dim); font-size: 13px; }
+  pre {
+    display: none;
+    margin: 0; padding: 14px 16px;
+    background: var(--ink);
+    border-top: 1px solid var(--line-soft);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px; line-height: 1.6;
+    color: var(--muted);
+    overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+  }
+  pre.open { display: block; }
+
+  /* ---------- How-to notes ---------- */
+  .notes {
+    border-left: 2px solid var(--line);
+    padding-left: 18px;
+    display: grid; gap: 14px;
+  }
+  .note-item { display: flex; gap: 12px; }
+  .note-mark {
+    font-family: "IBM Plex Mono", monospace;
+    color: var(--web); font-weight: 600; flex-shrink: 0;
+    font-size: 13px; line-height: 1.6;
+  }
+  .note-item p { font-size: 14px; color: var(--muted); }
+  .note-item strong { color: var(--text); font-weight: 600; }
+  code {
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--surface-2);
+    padding: 1px 6px; border-radius: 5px;
+    font-size: 0.86em; color: var(--signal);
+    word-break: break-all;
+  }
+
+  footer {
+    margin-top: 48px; padding-top: 20px;
+    border-top: 1px solid var(--line-soft);
+    color: var(--muted-dim);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Universal Links · App Links</div>
+    <h1>딥링크 라우팅<span class="split"> 테스터</span></h1>
+    <p class="lede">아래 링크를 <strong>탭</strong>하면 앱이 설치된 기기에서는 앱이 열리고, 아니면 웹으로 이동합니다. 주소창에 직접 입력하면 동작하지 않으니 반드시 탭해서 테스트하세요.</p>
+  </header>
+
+  <!-- ===== Resolver panel ===== -->
+  <div class="resolver">
+    <div class="resolver-top">
+      <span class="dot live"></span> RESOLVER · 실시간 감지
+    </div>
+    <div class="resolver-body">
+      <div class="res-line">
+        <span class="res-key">detected_platform</span>
+        <span class="res-val" id="r-platform"><span class="badge desktop">감지 중…</span></span>
+      </div>
+      <div class="res-line">
+        <span class="res-key">association_file</span>
+        <span class="res-val hl" id="r-file">—</span>
+      </div>
+      <div class="res-line">
+        <span class="res-key">origin</span>
+        <span class="res-val" id="r-origin">—</span>
+      </div>
+      <div class="res-line">
+        <span class="res-key">current_path</span>
+        <span class="res-val" id="r-path">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Test links ===== -->
+  <section>
+    <div class="sec-head"><span class="sec-num">01</span><h2>경로별 테스트 링크</h2></div>
+    <p class="sec-desc"><span style="color:var(--signal)">■</span> 앱으로 열려야 하는 경로 &nbsp;·&nbsp; <span style="color:var(--web)">■</span> 브라우저에 머물러야 하는 경로</p>
+    <div class="links" id="links"></div>
+  </section>
+
+  <!-- ===== Custom tester ===== -->
+  <section>
+    <div class="sec-head"><span class="sec-num">02</span><h2>임의 경로 만들기</h2></div>
+    <p class="sec-desc">테스트할 경로를 입력하고 링크를 생성하세요. 생성된 링크를 탭하면 라우팅 동작을 확인할 수 있습니다.</p>
+    <div class="custom">
+      <label for="pathInput">PATH</label>
+      <input id="pathInput" class="mono" type="text" value="/product/98765" placeholder="/some/path" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button class="btn" id="makeLink">링크 생성</button>
+    </div>
+    <div class="links" id="customLinks" style="margin-top:10px"></div>
+  </section>
+
+  <!-- ===== Config file check ===== -->
+  <section>
+    <div class="sec-head"><span class="sec-num">03</span><h2>설정 파일 확인</h2></div>
+    <p class="sec-desc">이 사이트가 iOS·Android 검증 파일을 올바르게 서빙하는지 실시간으로 가져와 확인합니다. 헤더를 탭하면 내용을 펼칩니다.</p>
+    <div class="checks" id="checks"></div>
+  </section>
+
+  <!-- ===== How to test ===== -->
+  <section>
+    <div class="sec-head"><span class="sec-num">04</span><h2>테스트 방법</h2></div>
+    <div class="notes">
+      <div class="note-item"><span class="note-mark">›</span><p><strong>탭해서 여세요.</strong> 주소창에 URL을 붙여넣으면 유니버설 링크가 트리거되지 않습니다. 메모·메시지 앱에 링크를 붙여넣고 탭하거나, 위 링크를 직접 탭하세요.</p></div>
+      <div class="note-item"><span class="note-mark">›</span><p><strong>루트 배포가 필요합니다.</strong> 검증 파일은 항상 도메인 루트(<code>도메인/.well-known/…</code>)에서 읽힙니다. GitHub Pages는 프로젝트 페이지(<code>id.github.io/repo/</code>)가 아니라 <strong>사용자 페이지</strong>(<code>id.github.io</code>) 저장소로 배포해야 루트에 파일을 둘 수 있습니다.</p></div>
+      <div class="note-item"><span class="note-mark">›</span><p><strong>iOS 재설치.</strong> AASA는 설치 시점에 캐시됩니다. 파일을 바꿨다면 앱을 삭제 후 재설치하거나 개발 빌드로 다시 배포하세요.</p></div>
+      <div class="note-item"><span class="note-mark">›</span><p><strong>Android 검증.</strong> <code>adb shell pm get-app-links 패키지명</code> 으로 검증 상태를 확인하고, 필요하면 <code>adb shell pm verify-app-links --re-verify 패키지명</code> 으로 재검증합니다.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <span id="f-time">deep-link-tester</span>
+    <span>github.io ready</span>
+  </footer>
+
+</div>
+
+<script>
+/* ============================================================
+   CONFIG — 여기만 자신의 앱에 맞게 수정하세요
+   testPaths: AASA / assetlinks 에 등록한 경로 패턴을 반영
+     opens:true  → 앱이 가로채야 하는 경로
+     opens:false → 브라우저에 머물러야 하는 경로 (제외 경로 등)
+   ============================================================ */
+const CONFIG = {
+  testPaths: [
+    { path: "/product/12345",   note: "상품 상세 · /product/*",       opens: true  },
+    { path: "/user/jane",       note: "사용자 프로필 · /user/*",       opens: true  },
+    { path: "/invite/AB12CD",   note: "초대 링크 · /invite/*",         opens: true  },
+    { path: "/admin/settings",  note: "관리자 · 제외 경로",            opens: false },
+    { path: "/about",           note: "마케팅 페이지 · 미등록 경로",   opens: false }
+  ]
+};
+
+/* ---------- Platform detection ---------- */
+function detectPlatform() {
+  const ua = navigator.userAgent || "";
+  const isiOS = /iPad|iPhone|iPod/.test(ua) ||
+                (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (isiOS) return "ios";
+  if (/Android/.test(ua)) return "android";
+  return "desktop";
+}
+
+const origin = window.location.origin;
+const platform = detectPlatform();
+
+const PLATFORM_LABEL = { ios: "iOS", android: "Android", desktop: "Desktop" };
+const FILE_FOR = {
+  ios:     ".well-known/apple-app-site-association",
+  android: ".well-known/assetlinks.json",
+  desktop: "iOS + Android 모두 대상 아님"
+};
+
+/* ---------- Fill resolver ---------- */
+document.getElementById("r-platform").innerHTML =
+  `<span class="badge ${platform}">${PLATFORM_LABEL[platform]}</span>`;
+document.getElementById("r-file").textContent = FILE_FOR[platform];
+document.getElementById("r-origin").textContent = origin;
+document.getElementById("r-path").textContent = window.location.pathname + window.location.search;
+
+/* ---------- Render test links ---------- */
+function linkCard(item) {
+  const kind = item.opens ? "app" : "web";
+  const mark = item.opens ? "↗" : "◦";
+  const a = document.createElement("a");
+  a.className = "link-card";
+  a.href = origin + item.path;
+  a.innerHTML = `
+    <span class="verdict ${kind}">${mark}</span>
+    <span class="link-meta">
+      <span class="link-path">${item.path}</span>
+      <span class="link-note">${item.note} · ${item.opens ? "앱으로 열림" : "웹 유지"}</span>
+    </span>
+    <span class="link-arrow">→</span>`;
+  return a;
+}
+
+const linksEl = document.getElementById("links");
+CONFIG.testPaths.forEach(item => linksEl.appendChild(linkCard(item)));
+
+/* ---------- Custom link generator ---------- */
+const customEl = document.getElementById("customLinks");
+document.getElementById("makeLink").addEventListener("click", () => {
+  let p = document.getElementById("pathInput").value.trim();
+  if (!p) return;
+  if (!p.startsWith("/")) p = "/" + p;
+  customEl.innerHTML = "";
+  customEl.appendChild(linkCard({ path: p, note: "직접 입력한 경로", opens: true }));
+});
+
+/* ---------- Config file checker ---------- */
+const CHECK_TARGETS = [
+  { platform: "iOS",     file: ".well-known/apple-app-site-association" },
+  { platform: "Android", file: ".well-known/assetlinks.json" }
+];
+
+const checksEl = document.getElementById("checks");
+
+CHECK_TARGETS.forEach(t => {
+  const url = origin + "/" + t.file;
+  const card = document.createElement("div");
+  card.className = "check";
+  card.innerHTML = `
+    <div class="check-head">
+      <span class="status">확인 중…</span>
+      <span class="check-file">${t.file}<span class="platform">${t.platform}</span></span>
+      <span class="toggle">▸</span>
+    </div>
+    <pre></pre>`;
+  checksEl.appendChild(card);
+
+  const statusEl = card.querySelector(".status");
+  const preEl = card.querySelector("pre");
+  const headEl = card.querySelector(".check-head");
+  const toggleEl = card.querySelector(".toggle");
+
+  headEl.addEventListener("click", () => {
+    preEl.classList.toggle("open");
+    toggleEl.textContent = preEl.classList.contains("open") ? "▾" : "▸";
+  });
+
+  fetch(url, { cache: "no-store" })
+    .then(res => {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.text();
+    })
+    .then(text => {
+      try {
+        const json = JSON.parse(text);
+        statusEl.textContent = "OK · JSON";
+        statusEl.className = "status ok";
+        preEl.textContent = JSON.stringify(json, null, 2);
+      } catch (e) {
+        statusEl.textContent = "찾음 · JSON 아님";
+        statusEl.className = "status fail";
+        preEl.textContent = text.slice(0, 2000);
+      }
+    })
+    .catch(err => {
+      statusEl.textContent = "없음 · " + err.message;
+      statusEl.className = "status fail";
+      preEl.textContent =
+        `${url} 를 가져오지 못했습니다.\n\n` +
+        `• 파일이 도메인 루트의 .well-known/ 아래에 있는지\n` +
+        `• 프로젝트 페이지가 아닌 사용자 페이지(id.github.io)로 배포했는지\n` +
+        `확인하세요.`;
+      preEl.classList.add("open");
+      toggleEl.textContent = "▾";
+    });
+});
+
+/* ---------- Footer timestamp ---------- */
+document.getElementById("f-time").textContent =
+  "resolved " + new Date().toISOString().replace("T", " ").slice(0, 19) + "Z";
+</script>
+</body>
+</html>
